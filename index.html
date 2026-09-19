@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>LLM 实验台</title>
+    <meta name="color-scheme" content="light dark" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Noto+Sans+SC:wght@400;500&family=Syne:wght@600&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./css/app.css?v=4" />
+  </head>
+  <body>
+    <div class="top-band">
+      <header class="top">
+        <div class="brand">
+          <span class="mark" aria-hidden="true">
+            <i class="on"></i><i></i><i></i>
+            <i class="on"></i><i class="on"></i><i></i>
+            <i class="on"></i><i class="on"></i><i class="on"></i>
+          </span>
+          <div>
+            <div class="brand-kicker">LLM</div>
+            <div class="brand-name">实验台</div>
+          </div>
+        </div>
+        <nav class="tabs" role="tablist" aria-label="视图">
+          <button type="button" role="tab" id="tab-data" aria-controls="view-data" aria-selected="true" data-view="data">语料</button>
+          <button type="button" role="tab" id="tab-arch" aria-controls="view-arch" aria-selected="false" data-view="arch">结构</button>
+          <button type="button" role="tab" id="tab-train" aria-controls="view-train" aria-selected="false" data-view="train">训练</button>
+          <button type="button" role="tab" id="tab-gen" aria-controls="view-gen" aria-selected="false" data-view="gen">生成</button>
+        </nav>
+        <dl class="meters">
+          <div><dt>词表</dt><dd id="m-vocab">0</dd></div>
+          <div><dt>参数</dt><dd id="m-params">0</dd></div>
+          <div><dt>步</dt><dd id="m-step">0</dd></div>
+          <div><dt>损失</dt><dd id="m-loss">—</dd></div>
+        </dl>
+      </header>
+    </div>
+
+    <p id="boot-error" class="boot-error" hidden></p>
+    <main class="wrap">
+      <section class="view" id="view-data" role="tabpanel" aria-labelledby="tab-data">
+        <div class="toolbar">
+          <div class="seg" id="presets" role="group" aria-label="语料预设"></div>
+        </div>
+        <div class="split">
+          <label class="editor">
+            <span>JSON</span>
+            <textarea id="corpus" class="json-edit" spellcheck="false"></textarea>
+            <p class="status" id="corpus-status"></p>
+          </label>
+          <div>
+            <div class="pane-h">
+              <h2>对话</h2>
+              <span class="status" id="chat-meta"></span>
+            </div>
+            <div id="chats"></div>
+          </div>
+        </div>
+        <div class="pack-band">
+          <div class="pane-h">
+            <h2>打包</h2>
+            <span class="status" id="pack-meta"></span>
+          </div>
+          <div class="seq-row" id="packed"></div>
+        </div>
+        <div>
+          <div class="pane-h">
+            <h2>词表</h2>
+            <span class="status" id="vocab-meta"></span>
+          </div>
+          <div class="vocab" id="vocab"></div>
+        </div>
+      </section>
+
+      <section class="view" id="view-arch" role="tabpanel" aria-labelledby="tab-arch" hidden>
+        <div class="arch-layout">
+          <div class="arch-diagram" id="arch-flow"></div>
+          <div>
+            <div class="hp">
+              <div class="hp-row">
+                <span>层数</span>
+                <div class="seg" id="hp-layer"></div>
+              </div>
+              <div class="hp-row">
+                <span>宽度</span>
+                <div class="seg" id="hp-embd"></div>
+              </div>
+              <div class="hp-row">
+                <span>头数</span>
+                <div class="seg" id="hp-head"></div>
+              </div>
+              <div class="hp-row">
+                <span>上下文</span>
+                <div class="seg" id="hp-ctx"></div>
+              </div>
+            </div>
+            <table class="table" id="arch-inspect">
+              <thead>
+                <tr><th>张量</th><th>形状</th><th>参数</th></tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section class="view" id="view-train" role="tabpanel" aria-labelledby="tab-train" hidden>
+        <div class="toolbar">
+          <button type="button" class="btn primary" id="btn-play"><i data-lucide="play"></i><span>训练</span></button>
+          <button type="button" class="btn" id="btn-step"><i data-lucide="skip-forward"></i>一步</button>
+          <button type="button" class="btn" id="btn-burst"><i data-lucide="fast-forward"></i>×50</button>
+          <button type="button" class="btn icon ghost" id="btn-reset" aria-label="重置参数" title="重置参数"><i data-lucide="rotate-ccw"></i></button>
+          <label class="field">
+            <span>学习率 <b id="lr-val">0.006</b></span>
+            <input type="range" id="lr" min="0" max="100" value="72" />
+          </label>
+          <label class="field">
+            <span>批次 <b id="bs-val">8</b></span>
+            <input type="range" id="batch" min="1" max="16" value="8" />
+          </label>
+          <label class="field">
+            <span>速度 <b id="spd-val">8</b></span>
+            <input type="range" id="speed" min="1" max="32" value="8" />
+          </label>
+          <div class="seg" id="optim" role="group" aria-label="优化器">
+            <button type="button" aria-pressed="true" data-opt="adam">Adam</button>
+            <button type="button" aria-pressed="false" data-opt="sgd">SGD</button>
+          </div>
+        </div>
+        <div class="chart-box"><canvas id="loss-chart" role="img" aria-label="训练损失曲线"></canvas></div>
+        <div class="chart-meta">
+          <span>损失<b id="loss-now">—</b></span>
+          <span>困惑度<b id="ppl-now">—</b></span>
+          <span>准确<b id="acc-now">—</b></span>
+          <span>‖g‖<b id="gn-now">—</b></span>
+        </div>
+        <div class="batch">
+          <div class="seq"><span class="seq-k">输入</span><div class="seq-row" id="row-in"></div></div>
+          <div class="seq"><span class="seq-k">目标</span><div class="seq-row" id="row-y"></div></div>
+          <div class="seq"><span class="seq-k">预测</span><div class="seq-row" id="row-p"></div></div>
+          <p class="status" id="batch-inspect"></p>
+        </div>
+        <div class="split">
+          <div>
+            <div class="pane-h">
+              <h2>注意力</h2>
+              <div class="seg" id="layer-sel" role="group" aria-label="层"></div>
+              <div class="seg" id="head-sel" role="group" aria-label="头"></div>
+            </div>
+            <div class="heat-box"><canvas id="attn-train" aria-label="注意力热力图"></canvas></div>
+            <p class="status" id="attn-train-status"></p>
+          </div>
+          <div>
+            <div class="pane-h"><h2>词嵌入</h2></div>
+            <div class="atlas-box"><canvas id="embed-atlas" aria-label="词嵌入二维投影"></canvas></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="view" id="view-gen" role="tabpanel" aria-labelledby="tab-gen" hidden>
+        <div class="toolbar">
+          <label class="prompt-field">
+            <span>提示</span>
+            <input type="text" id="prompt" value="小猫" autocomplete="off" spellcheck="false" />
+          </label>
+          <button type="button" class="btn primary" id="btn-gen-step"><i data-lucide="chevron-right"></i>下一步</button>
+          <button type="button" class="btn" id="btn-gen-run"><i data-lucide="play"></i><span>连续</span></button>
+          <button type="button" class="btn icon ghost" id="btn-gen-clear" aria-label="清空生成" title="清空生成"><i data-lucide="eraser"></i></button>
+          <label class="field">
+            <span>温度 <b id="temp-val">0.80</b></span>
+            <input type="range" id="temp" min="0" max="150" value="80" />
+          </label>
+          <label class="field">
+            <span>Top-k <b id="topk-val">关</b></span>
+            <input type="range" id="topk" min="0" max="32" value="0" />
+          </label>
+          <label class="field">
+            <span>Top-p <b id="topp-val">1.00</b></span>
+            <input type="range" id="topp" min="50" max="100" value="100" />
+          </label>
+        </div>
+        <div class="stream" id="gen-stream"></div>
+        <div class="split">
+          <div>
+            <div class="pane-h"><h2>下一个词</h2></div>
+            <div class="bars" id="probs"></div>
+          </div>
+          <div>
+            <div class="pane-h"><h2>注意力</h2></div>
+            <div class="heat-box"><canvas id="attn-gen" aria-label="生成注意力"></canvas></div>
+            <p class="status" id="attn-gen-status"></p>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <div class="live" id="live" aria-live="polite"></div>
+    <script src="https://cdn.jsdelivr.net/npm/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+    <script type="module" src="./js/app.js?v=4"></script>
+  </body>
+</html>
+
