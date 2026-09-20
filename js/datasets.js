@@ -4,92 +4,176 @@ function pretty(records) {
 
 export const PRESETS = [
   {
-    id: "qa",
-    name: "问答",
-    prompt: "你叫什么？",
+    id: "em",
+    name: "电磁",
+    prompt: "BPSK是什么调制？",
     text: pretty([
       {
         messages: [
-          { role: "system", content: "你是一只小猫。" },
-          { role: "user", content: "你叫什么？" },
-          { role: "assistant", content: "小猫小狗" },
+          { role: "system", content: "你是电磁信号分析助手。" },
+          { role: "user", content: "BPSK是什么调制？" },
+          { role: "assistant", content: "二进制相移键控，两相位相差180度。" },
         ],
       },
       {
         messages: [
-          { role: "system", content: "你是一只小猫。" },
-          { role: "user", content: "你会什么？" },
-          { role: "assistant", content: "小猫小狗" },
+          { role: "system", content: "你是电磁信号分析助手。" },
+          { role: "user", content: "QPSK和BPSK有何不同？" },
+          { role: "assistant", content: "QPSK四相位，同带宽下比特率更高。" },
         ],
       },
       {
         messages: [
-          { role: "system", content: "你是一只小猫。" },
-          { role: "user", content: "再叫一次" },
-          { role: "assistant", content: "小猫小狗" },
+          { role: "system", content: "你是电磁信号分析助手。" },
+          { role: "user", content: "LFM常见于什么体制？" },
+          { role: "assistant", content: "线性调频，多用于脉冲压缩雷达。" },
+        ],
+      },
+      {
+        messages: [
+          { role: "system", content: "你是电磁信号分析助手。" },
+          { role: "user", content: "跳频体制有何特点？" },
+          { role: "assistant", content: "载频按图案跳变，抗干扰、低截获。" },
+        ],
+      },
+      {
+        messages: [
+          { role: "system", content: "你是电磁信号分析助手。" },
+          { role: "user", content: "个体识别靠什么特征？" },
+          { role: "assistant", content: "功放非线性、杂散和相位噪声等无意指纹。" },
+        ],
+      },
+      {
+        messages: [
+          { role: "system", content: "你是电磁信号分析助手。" },
+          { role: "user", content: "同体制电台如何区分？" },
+          { role: "assistant", content: "硬件公差形成稳定射频指纹，可分到个体。" },
         ],
       },
     ]),
   },
   {
-    id: "poem",
-    name: "静夜思",
-    prompt: "静夜思",
+    id: "mod",
+    name: "调制",
+    prompt: "16QAM怎么调？",
     text: pretty([
       {
         messages: [
-          { role: "system", content: "你是诗人。" },
-          { role: "user", content: "静夜思" },
-          { role: "assistant", content: "床前明月光，疑是地上霜。" },
+          { role: "system", content: "你是调制识别助手。" },
+          { role: "user", content: "AM和FM差在哪？" },
+          { role: "assistant", content: "AM变幅度，FM变频率，信息载荷不同。" },
         ],
       },
       {
         messages: [
-          { role: "system", content: "你是诗人。" },
-          { role: "user", content: "下两句" },
-          { role: "assistant", content: "举头望明月，低头思故乡。" },
+          { role: "system", content: "你是调制识别助手。" },
+          { role: "user", content: "BPSK星座是什么样？" },
+          { role: "assistant", content: "两实点，位于+1与-1，相位差180度。" },
+        ],
+      },
+      {
+        messages: [
+          { role: "system", content: "你是调制识别助手。" },
+          { role: "user", content: "16QAM怎么调？" },
+          { role: "assistant", content: "幅度与相位联合编码，每符号4比特。" },
+        ],
+      },
+      {
+        messages: [
+          { role: "system", content: "你是调制识别助手。" },
+          { role: "user", content: "OFDM为何抗多径？" },
+          { role: "assistant", content: "子载波正交，符号更长，频选衰落被切开。" },
+        ],
+      },
+      {
+        messages: [
+          { role: "system", content: "你是调制识别助手。" },
+          { role: "user", content: "MSK属于哪类？" },
+          { role: "assistant", content: "连续相位频移，包络恒定，旁瓣较低。" },
         ],
       },
     ]),
   },
   {
-    id: "en",
-    name: "English",
-    prompt: "who are you?",
+    id: "regime",
+    name: "体制",
+    prompt: "FMCW用于什么？",
     text: pretty([
       {
         messages: [
-          { role: "system", content: "You are a cat." },
-          { role: "user", content: "who are you?" },
-          { role: "assistant", content: "the cat" },
+          { role: "system", content: "你是信号体制分析助手。" },
+          { role: "user", content: "脉压体制解决什么？" },
+          { role: "assistant", content: "宽脉冲保能量，匹配滤波提分辨力。" },
         ],
       },
       {
         messages: [
-          { role: "system", content: "You are a cat." },
-          { role: "user", content: "where do you sit?" },
-          { role: "assistant", content: "on the mat" },
+          { role: "system", content: "你是信号体制分析助手。" },
+          { role: "user", content: "FMCW用于什么？" },
+          { role: "assistant", content: "连续波调频测距测速，多见近程雷达。" },
+        ],
+      },
+      {
+        messages: [
+          { role: "system", content: "你是信号体制分析助手。" },
+          { role: "user", content: "跳频和直扩有何不同？" },
+          { role: "assistant", content: "跳频换载频，直扩展频谱，抗干扰机理不同。" },
+        ],
+      },
+      {
+        messages: [
+          { role: "system", content: "你是信号体制分析助手。" },
+          { role: "user", content: "脉冲多普勒体制看什么？" },
+          { role: "assistant", content: "脉间相参积累，用多普勒分动目标。" },
+        ],
+      },
+      {
+        messages: [
+          { role: "system", content: "你是信号体制分析助手。" },
+          { role: "user", content: "相控阵体制优势？" },
+          { role: "assistant", content: "波束电扫，可快速跳变指向与多波束。" },
         ],
       },
     ]),
   },
   {
-    id: "count",
-    name: "计数",
-    prompt: "从0数到9",
+    id: "sei",
+    name: "个体",
+    prompt: "个体识别靠什么？",
     text: pretty([
       {
         messages: [
-          { role: "system", content: "只输出数字。" },
-          { role: "user", content: "从0数到9" },
-          { role: "assistant", content: "0123456789" },
+          { role: "system", content: "你是辐射源个体识别助手。" },
+          { role: "user", content: "个体识别靠什么？" },
+          { role: "assistant", content: "发射机无意特征，如功放非线性与杂散。" },
         ],
       },
       {
         messages: [
-          { role: "system", content: "只输出数字。" },
-          { role: "user", content: "再数一遍" },
-          { role: "assistant", content: "0123456789" },
+          { role: "system", content: "你是辐射源个体识别助手。" },
+          { role: "user", content: "为何能区分同型号电台？" },
+          { role: "assistant", content: "器件公差造成射频指纹，且短时稳定。" },
+        ],
+      },
+      {
+        messages: [
+          { role: "system", content: "你是辐射源个体识别助手。" },
+          { role: "user", content: "脉内无意调制是什么？" },
+          { role: "assistant", content: "非理想发射引起的脉内细微畸变。" },
+        ],
+      },
+      {
+        messages: [
+          { role: "system", content: "你是辐射源个体识别助手。" },
+          { role: "user", content: "相位噪声对个体有何用？" },
+          { role: "assistant", content: "振荡器差异会进射频，可作指纹维。" },
+        ],
+      },
+      {
+        messages: [
+          { role: "system", content: "你是辐射源个体识别助手。" },
+          { role: "user", content: "杂散从哪来？" },
+          { role: "assistant", content: "本振泄漏、谐波和交调，个体间有差异。" },
         ],
       },
     ]),

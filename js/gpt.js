@@ -554,4 +554,24 @@ export class TinyGPT {
   embeddingMatrix() {
     return { w: this.tokEmb.w, V: this.V, C: this.C };
   }
+
+  dumpWeights() {
+    return this.params.map((p) => ({
+      name: p.name,
+      shape: p.shape,
+      w: Array.from(p.w),
+    }));
+  }
+
+  loadWeights(arr) {
+    if (!arr || arr.length !== this.params.length) throw new Error("权重与结构不匹配");
+    for (let i = 0; i < arr.length; i++) {
+      const p = this.params[i];
+      const rec = arr[i];
+      if (!rec || !rec.w || rec.w.length !== p.n) throw new Error("权重形状不匹配");
+      p.w.set(Float32Array.from(rec.w));
+      p.zeroGrad();
+      if (p.zeroMoments) p.zeroMoments();
+    }
+  }
 }

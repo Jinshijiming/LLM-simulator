@@ -34,6 +34,19 @@ export class CharTokenizer {
     this.endId = this.stoi.get("<|end|>");
   }
 
+  static fromChars(chars) {
+    const t = new CharTokenizer("");
+    t.chars = Array.from(chars || []);
+    t.stoi = new Map(t.chars.map((c, i) => [c, i]));
+    t.itos = t.chars;
+    t.vocabSize = t.chars.length;
+    t.systemId = t.stoi.get("<|system|>");
+    t.userId = t.stoi.get("<|user|>");
+    t.assistantId = t.stoi.get("<|assistant|>");
+    t.endId = t.stoi.get("<|end|>");
+    return t;
+  }
+
   encode(text) {
     const ids = [];
     const dropped = [];

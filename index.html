@@ -11,7 +11,7 @@
       href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Noto+Sans+SC:wght@400;500&family=Syne:wght@600&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="./css/app.css?v=4" />
+    <link rel="stylesheet" href="./css/app.css?v=6" />
   </head>
   <body>
     <div class="top-band">
@@ -112,10 +112,15 @@
 
       <section class="view" id="view-train" role="tabpanel" aria-labelledby="tab-train" hidden>
         <div class="toolbar">
+          <label class="pick">
+            <span>语料</span>
+            <select id="train-corpus"></select>
+          </label>
           <button type="button" class="btn primary" id="btn-play"><i data-lucide="play"></i><span>训练</span></button>
           <button type="button" class="btn" id="btn-step"><i data-lucide="skip-forward"></i>一步</button>
           <button type="button" class="btn" id="btn-burst"><i data-lucide="fast-forward"></i>×50</button>
           <button type="button" class="btn icon ghost" id="btn-reset" aria-label="重置参数" title="重置参数"><i data-lucide="rotate-ccw"></i></button>
+          <button type="button" class="btn" id="btn-export"><i data-lucide="download"></i>导出模型</button>
           <label class="field">
             <span>学习率 <b id="lr-val">0.006</b></span>
             <input type="range" id="lr" min="0" max="100" value="72" />
@@ -165,9 +170,16 @@
 
       <section class="view" id="view-gen" role="tabpanel" aria-labelledby="tab-gen" hidden>
         <div class="toolbar">
+          <label class="pick">
+            <span>模型</span>
+            <select id="gen-model"></select>
+          </label>
+          <button type="button" class="btn" id="btn-import"><i data-lucide="upload"></i>导入</button>
+          <input type="file" id="ckpt-file" accept="application/json,.json" hidden />
+          <span class="ckpt-meta" id="gen-model-meta"></span>
           <label class="prompt-field">
             <span>提示</span>
-            <input type="text" id="prompt" value="小猫" autocomplete="off" spellcheck="false" />
+            <input type="text" id="prompt" value="BPSK是什么调制？" autocomplete="off" spellcheck="false" />
           </label>
           <button type="button" class="btn primary" id="btn-gen-step"><i data-lucide="chevron-right"></i>下一步</button>
           <button type="button" class="btn" id="btn-gen-run"><i data-lucide="play"></i><span>连续</span></button>
@@ -202,7 +214,7 @@
 
     <div class="live" id="live" aria-live="polite"></div>
     <script src="https://cdn.jsdelivr.net/npm/lucide@0.469.0/dist/umd/lucide.min.js"></script>
-    <script type="module" src="./js/app.js?v=4"></script>
+    <script type="module" src="./js/app.js?v=6"></script>
   </body>
 </html>
 

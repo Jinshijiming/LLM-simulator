@@ -50,4 +50,15 @@ for (let s = 0; s < 80; s++) {
 }
 console.log("losses", losses.map((v) => v.toFixed(3)).join(" -> "));
 assert(losses[0] > losses[losses.length - 1], "masked loss should drop");
+const dumped = model.dumpWeights();
+const model2 = new TinyGPT({
+  vocabSize: tok.vocabSize,
+  blockSize: 16,
+  nEmbd: 32,
+  nHead: 4,
+  nLayer: 1,
+  rng: new RNG(99),
+});
+model2.loadWeights(dumped);
+assert(model2.tokEmb.w[0] === model.tokEmb.w[0], "reload tokEmb");
 console.log("ok");

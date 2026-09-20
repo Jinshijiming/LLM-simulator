@@ -71,13 +71,13 @@ function showError(err) {
 
 const saved = (() => {
   try {
-    return JSON.parse(localStorage.getItem("llm-lab-v2") || "null");
+    return JSON.parse(localStorage.getItem("llm-lab-v3") || "null");
   } catch {
     return null;
   }
 })();
 const savedText = saved?.text && !parseCorpus(saved.text).error ? saved.text : PRESETS[0].text;
-const savedPreset = savedText === saved?.text ? saved?.preset || "qa" : "qa";
+const savedPreset = savedText === saved?.text ? saved?.preset || "em" : "em";
 
 const state = {
   view: "data",
@@ -96,6 +96,8 @@ const state = {
   speed: 8,
   conversations: [],
   corpusError: null,
+  ckpts: loadCkpts(),
+  infer: { source: "live", bundle: null },
   tokenizer: null,
   data: null,
   model: null,
@@ -134,10 +136,185 @@ const attnTrain = new AttentionHeatmap($("attn-train"), $("attn-train-status"));
 const attnGen = new AttentionHeatmap($("attn-gen"), $("attn-gen-status"));
 const atlas = new EmbeddingAtlas($("embed-atlas"));
 
+function loadCkpts() {
+  try {
+    const raw = JSON.parse(localStorage.getItem("llm-lab-ckpts-v1") || "[]");
+    return Array.isArray(raw) ? raw.filter((c) => c && c.magic === "llm-lab-ckpt-1" && Array.isArray(c.weights)) : [];
+  } catch {
+    return [];
+  }
+}
+
+function persistCkpts() {
+  try {
+    localStorage.setItem("llm-lab-ckpts-v1", JSON.stringify(state.ckpts));
+  } catch (err) {}
+}
+
+function inferCtx() {
+  if (state.infer && state.infer.source !== "live" && state.infer.bundle) return state.infer.bundle;
+  return { model: state.model, tokenizer: state.tokenizer, conversations: state.conversations, ckpt: null };
+}
+
+function corpusName(id) {
+  const p = PRESETS.find((x) => x.id === id);
+  return p ? p.name : "自定义";
+}
+
+function makeCheckpoint() {
+  return {
+    magic: "llm-lab-ckpt-1",
+    id: "ckpt-" + Date.now().toString(36) + Math.floor(Math.random() * 1000).toString(36),
+    name: corpusName(state.preset) + " · 步" + state.step,
+    created: Date.now(),
+    preset: state.preset,
+    text: state.text,
+    prompt: state.gen.prompt,
+    hparams: {
+      nLayer: state.hparams.nLayer,
+      nEmbd: state.hparams.nEmbd,
+      nHead: state.hparams.nHead,
+      blockSize: state.hparams.blockSize,
+    },
+    vocab: state.tokenizer.chars.slice(),
+    step: state.step,
+    loss: state.lastLoss,
+    weights: state.model.dumpWeights(),
+  };
+}
+
+function bundleFromCkpt(ckpt) {
+  const tokenizer = CharTokenizer.fromChars(ckpt.vocab);
+  const parsed = parseCorpus(ckpt.text || "[]");
+  const model = new TinyGPT({
+    vocabSize: tokenizer.vocabSize,
+    blockSize: ckpt.hparams.blockSize,
+    nEmbd: ckpt.hparams.nEmbd,
+    nHead: ckpt.hparams.nHead,
+    nLayer: ckpt.hparams.nLayer,
+    rng: new RNG(1),
+  });
+  model.loadWeights(ckpt.weights);
+  return {
+    model,
+    tokenizer,
+    conversations: parsed.conversations,
+    ckpt,
+  };
+}
+
+function addCkpt(ckpt) {
+  state.ckpts = [ckpt, ...state.ckpts.filter((c) => c.id !== ckpt.id)].slice(0, 8);
+  persistCkpts();
+  renderModelSelect();
+}
+
+function selectInfer(id) {
+  if (id === "live") {
+    state.infer = { source: "live", bundle: null };
+  } else {
+    const ckpt = state.ckpts.find((c) => c.id === id);
+    if (!ckpt) return;
+    state.infer = { source: id, bundle: bundleFromCkpt(ckpt) };
+    if (ckpt.prompt) {
+      state.gen.prompt = ckpt.prompt;
+      const inp = $("prompt");
+      if (inp) inp.value = ckpt.prompt;
+    }
+  }
+  resetGen(true);
+  renderModelSelect();
+  renderAttention();
+}
+
+function applyCorpus(id) {
+  const p = PRESETS.find((x) => x.id === id);
+  if (!p) return;
+  state.preset = p.id;
+  state.text = p.text;
+  state.gen.prompt = p.prompt || state.gen.prompt;
+  const inp = $("prompt");
+  if (inp) inp.value = state.gen.prompt;
+  rebuild();
+}
+
+function renderCorpusSelect() {
+  const sel = $("train-corpus");
+  if (!sel) return;
+  sel.replaceChildren();
+  for (const p of PRESETS) {
+    const o = document.createElement("option");
+    o.value = p.id;
+    o.textContent = p.name;
+    sel.append(o);
+  }
+  if (state.preset === "custom" || !PRESETS.some((p) => p.id === state.preset)) {
+    const o = document.createElement("option");
+    o.value = "custom";
+    o.textContent = "自定义";
+    sel.append(o);
+    sel.value = "custom";
+  } else {
+    sel.value = state.preset;
+  }
+}
+
+function renderModelSelect() {
+  const sel = $("gen-model");
+  if (!sel) return;
+  const cur = state.infer ? state.infer.source : "live";
+  sel.replaceChildren();
+  const live = document.createElement("option");
+  live.value = "live";
+  live.textContent = "当前训练";
+  sel.append(live);
+  for (const c of state.ckpts) {
+    const o = document.createElement("option");
+    o.value = c.id;
+    o.textContent = c.name;
+    sel.append(o);
+  }
+  const ok = [...sel.options].some((o) => o.value === cur);
+  sel.value = ok ? cur : "live";
+  if (!ok) state.infer = { source: "live", bundle: null };
+  const meta = $("gen-model-meta");
+  if (meta) {
+    if (!state.infer || state.infer.source === "live") {
+      meta.textContent = "步 " + state.step + (state.lastLoss == null ? "" : " · 损失 " + fmtNum(state.lastLoss, 3));
+    } else if (state.infer.bundle && state.infer.bundle.ckpt) {
+      const k = state.infer.bundle.ckpt;
+      meta.textContent = "步 " + k.step + (k.loss == null ? "" : " · 损失 " + fmtNum(k.loss, 3));
+    } else meta.textContent = "";
+  }
+}
+
+function exportModel() {
+  const ckpt = makeCheckpoint();
+  addCkpt(ckpt);
+  const blob = new Blob([JSON.stringify(ckpt)], { type: "application/json" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "实验台-" + ckpt.name.replace(/[^\w\u4e00-\u9fff.-]+/g, "-") + ".json";
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  announce("导出 " + ckpt.name);
+}
+
+function importModelFile(file) {
+  return file.text().then((raw) => {
+    const ckpt = JSON.parse(raw);
+    if (!ckpt || ckpt.magic !== "llm-lab-ckpt-1") throw new Error("不是实验台模型文件");
+    if (!ckpt.hparams || !Array.isArray(ckpt.weights) || !Array.isArray(ckpt.vocab)) throw new Error("模型文件不完整");
+    addCkpt(ckpt);
+    selectInfer(ckpt.id);
+    announce("导入 " + ckpt.name);
+  });
+}
+
 function persist() {
   try {
     localStorage.setItem(
-      "llm-lab-v2",
+      "llm-lab-v3",
       JSON.stringify({
         preset: state.preset,
         text: state.text,
@@ -202,20 +379,21 @@ function rebuild() {
   state.forwardKind = null;
   state.vizLayer = state.hparams.nLayer - 1;
   lossChart.reset();
-  resetGen(false);
+  if (!state.infer || state.infer.source === "live") resetGen(false);
   previewBatch();
   persist();
   renderAll();
 }
 
-function tokenEl(id, cls = "", onClick) {
+function tokenEl(id, cls = "", onClick, tok) {
+  tok = tok || state.tokenizer;
   const el = document.createElement("button");
   el.type = "button";
-  if (state.tokenizer.isSpecial(id)) cls = `${cls} special`.trim();
+  if (tok.isSpecial(id)) cls = `${cls} special`.trim();
   el.className = `tok ${cls}`.trim();
   const ch = document.createElement("span");
   ch.className = "ch";
-  ch.textContent = state.tokenizer.displayId(id);
+  ch.textContent = tok.displayId(id);
   const n = document.createElement("span");
   n.className = "id";
   n.textContent = String(id);
@@ -301,8 +479,9 @@ function renderHeadSelectors() {
   }
 }
 
-function labelsFor(ids) {
-  return Array.from(ids, (id) => state.tokenizer.displayId(id));
+function labelsFor(ids, tok) {
+  tok = tok || state.tokenizer;
+  return Array.from(ids, (id) => tok.displayId(id));
 }
 
 function ensureForward(kind) {
@@ -312,8 +491,9 @@ function ensureForward(kind) {
     state.forwardKind = "train";
   }
   if (kind === "gen" && state.forwardKind !== "gen" && state.gen.ctx) {
-    state.model.forward(state.gen.ctx, null, 1, state.gen.ctx.length);
-    state.forwardKind = "gen";
+    const inf = inferCtx();
+    inf.model.forward(state.gen.ctx, null, 1, state.gen.ctx.length);
+    if (inf.model === state.model) state.forwardKind = "gen";
   }
 }
 
@@ -328,9 +508,13 @@ function renderAttention() {
   }
   if (state.gen.ctx) {
     const restore = state.forwardKind;
-    ensureForward("gen");
-    attnGen.set(labelsFor(state.gen.ctx), state.model.getAttention(state.vizLayer, state.vizHead, 0));
-    if (restore === "train") ensureForward("train");
+    const inf = inferCtx();
+    const layer = Math.max(0, Math.min(inf.model.L - 1, state.vizLayer));
+    const head = state.vizHead === "mean" || state.vizHead >= inf.model.H ? "mean" : state.vizHead;
+    if (inf.model === state.model) ensureForward("gen");
+    else if (state.gen.ctx) inf.model.forward(state.gen.ctx, null, 1, state.gen.ctx.length);
+    attnGen.set(labelsFor(state.gen.ctx, inf.tokenizer), inf.model.getAttention(layer, head, 0));
+    if (restore === "train" && inf.model === state.model) ensureForward("train");
   }
 }
 
@@ -553,13 +737,15 @@ function renderArch() {
 }
 
 function contextIds() {
-  const T = state.hparams.blockSize;
-  const ids = state.gen.ids.length ? state.gen.ids : [0];
+  const inf = inferCtx();
+  const T = inf.model ? inf.model.Tmax : state.hparams.blockSize;
+  const ids = state.gen.ids.length ? state.gen.ids : [inf.tokenizer.endId || 0];
   return Int32Array.from(ids.slice(-T));
 }
 
 function resetGen(render = true) {
-  const packed = chatPrefix(state.conversations, state.tokenizer, state.gen.prompt);
+  const inf = inferCtx();
+  const packed = chatPrefix(inf.conversations, inf.tokenizer, state.gen.prompt);
   state.gen.ids = Array.from(packed.ids);
   state.gen.origin = state.gen.ids.map(() => "prompt");
   state.gen.roles = Array.from(packed.roles);
@@ -570,13 +756,14 @@ function resetGen(render = true) {
 
 function renderGen() {
   $("prompt").value = state.gen.prompt;
+  const infTok = inferCtx().tokenizer;
   const stream = $("gen-stream");
   stream.replaceChildren();
   state.gen.ids.forEach((id, i) => {
     const born = state.gen.origin[i] === "prompt" ? "prompt" : "";
     const now = i === state.gen.ids.length - 1 && state.gen.origin[i] === "gen" ? "now" : "";
     const role = state.gen.roles && state.gen.roles[i] ? "role-" + state.gen.roles[i] : "";
-    stream.append(tokenEl(id, `${born} ${now} ${role}`.trim()));
+    stream.append(tokenEl(id, `${born} ${now} ${role}`.trim(), undefined, infTok));
   });
 
   const last = state.gen.last;
@@ -585,8 +772,8 @@ function renderGen() {
     return;
   }
   const items = [];
-  for (let id = 0; id < state.tokenizer.vocabSize; id++) {
-    items.push({ id, label: state.tokenizer.displayId(id), p: last.filtered[id] });
+  for (let id = 0; id < infTok.vocabSize; id++) {
+    items.push({ id, label: infTok.displayId(id), p: last.filtered[id] });
   }
   items.sort((a, b) => b.p - a.p);
   const top = items.slice(0, 12);
@@ -600,7 +787,10 @@ function renderGen() {
     last.id,
   );
   if (state.gen.ctx) {
-    attnGen.set(labelsFor(state.gen.ctx), state.model.getAttention(state.vizLayer, state.vizHead, 0));
+    const inf = inferCtx();
+    const layer = Math.max(0, Math.min(inf.model.L - 1, state.vizLayer));
+    const head = state.vizHead === "mean" || state.vizHead >= inf.model.H ? "mean" : state.vizHead;
+    attnGen.set(labelsFor(state.gen.ctx, inf.tokenizer), inf.model.getAttention(layer, head, 0));
   }
 }
 
@@ -613,6 +803,8 @@ function renderAll() {
   renderEmbed();
   renderAttention();
   renderGen();
+  renderCorpusSelect();
+  renderModelSelect();
   $("lr").value = String(sliderFromLr(state.hparams.lr));
   $("lr-val").textContent = fmtLr(state.hparams.lr);
   $("batch").value = String(state.hparams.batchSize);
@@ -667,6 +859,7 @@ function refreshTrainViz() {
   renderTrainBatch();
   renderEmbed();
   renderAttention();
+  renderModelSelect();
 }
 
 function syncPlayButtons() {
@@ -704,13 +897,14 @@ async function playLoop() {
 
 function generateOne() {
   if (!state.gen.ids.length) resetGen(false);
+  const inf = inferCtx();
   const ctx = contextIds();
   const T = ctx.length;
-  const V = state.tokenizer.vocabSize;
-  state.model.forward(ctx, null, 1, T);
-  state.forwardKind = "gen";
+  const V = inf.tokenizer.vocabSize;
+  inf.model.forward(ctx, null, 1, T);
+  if (inf.model === state.model) state.forwardKind = "gen";
   state.gen.ctx = Int32Array.from(ctx);
-  const logits = state.model.logits.subarray((T - 1) * V, T * V);
+  const logits = inf.model.logits.subarray((T - 1) * V, T * V);
   const pipe = samplePipeline(logits, {
     temperature: state.gen.temp,
     topk: state.gen.topk,
@@ -722,10 +916,10 @@ function generateOne() {
   if (!state.gen.roles) state.gen.roles = [];
   state.gen.roles.push("assistant");
   state.gen.last = pipe;
-  if (state.tokenizer.isEnd(pipe.id)) state.gen.running = false;
+  if (inf.tokenizer.isEnd(pipe.id)) state.gen.running = false;
   renderGen();
   renderMeters();
-  announce(state.tokenizer.decode([pipe.id]));
+  announce(inf.tokenizer.decode([pipe.id]));
   return pipe;
 }
 
@@ -779,6 +973,20 @@ function bind() {
     refreshTrainViz();
   });
   $("btn-reset").addEventListener("click", () => rebuild());
+  $("train-corpus").addEventListener("change", (e) => {
+    if (e.target.value !== "custom") applyCorpus(e.target.value);
+  });
+  $("btn-export").addEventListener("click", () => {
+    try { exportModel(); } catch (err) { console.error(err); showError(err); }
+  });
+  $("gen-model").addEventListener("change", (e) => selectInfer(e.target.value));
+  $("btn-import").addEventListener("click", () => $("ckpt-file").click());
+  $("ckpt-file").addEventListener("change", (e) => {
+    const file = e.target.files && e.target.files[0];
+    e.target.value = "";
+    if (!file) return;
+    importModelFile(file).catch((err) => { console.error(err); showError(err); });
+  });
 
   $("lr").addEventListener("input", (e) => {
     state.hparams.lr = lrFromSlider(e.target.value);
